@@ -22,9 +22,64 @@ app.set('port', port);
 var server = http.createServer(app);
 var io        = require('socket.io').listen(server)
 
+// this will store all the usernames and their socket.id
+var usernames = {}
+var messages  = []
+var rooms     =[{
+                room: 'podcasts',
+                users: []
+                }]
 // socket Code will be written here
 io.sockets.on('connect', function(socket){
   console.log('connected')
+
+  // emit all messages as soon as user connects
+
+
+  // reserverd listeners
+  socket.on('disconnect', function(){
+    delete usernames[socket.username]
+    io.sockets.emit('users', Object.keys(usernames))
+  })
+
+
+
+  // this is setting up a listener
+  socket.on('addUser', function(username){
+    console.log(username)
+    // storing their name as the key and socket.id as value
+    usernames[username] = socket.id;
+    socket.username = username;
+    // were going to send to every socket connection the users array
+    io.sockets.emit('users', Object.keys(usernames))
+    io.sockets.emit('all messages', messages)
+    io.sockets.emit('rooms', rooms)
+  })
+
+  // listening for messages
+  socket.on('message', function(message){
+    console.log(message)
+    var obj = {};
+    obj.username = socket.username
+    obj.message  = message;
+    messages.push(obj)
+
+    io.sockets.emit('all messages', messages)
+
+  })
+
+  socket.on('join room', function(roomName){
+
+    socket.join(roomName)
+    rooms[0].users.push(socket.username)
+    io.sockets.to(roomName).emit('users', rooms[0].users, roomName)
+
+
+  })
+
+
+
+
 })
 /**
  * Listen on provided port, on all network interfaces.
